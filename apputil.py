@@ -1,84 +1,149 @@
 import pandas as pd
-import ssl
 
-# Bypass SSL issues common on macOS
-ssl._create_default_https_context = ssl._create_unverified_context
+
+url = (
+    "https://github.com/melaniewalsh/Intro-Cultural-Analytics/"
+    "raw/master/book/data/bellevue_almshouse_modified.csv"
+)
+
+df_bellevue = pd.read_csv(url)
+# df_bellevue = pd.read_csv("./data/.../mydata.csv")
 
 
 def fibonacci(n):
-    """Return the nth number in the Fibonacci sequence using recursion."""
-    if n <= 1:
-        return n
-
-    x = fibonacci(n - 1) + fibonacci(n - 2)
-    return x
-
-
-print(fibonacci(9))
-
+    """Return the nth Fibonacci number."""
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
 
 def to_binary(n):
-    """Convert a decimal integer to its binary representation using recursion."""
-    if n <= 1:
-        return n
+    """Convert an integer to its binary representation as a string."""
+    if n == 0:
+        return "0"
 
-    x = n % 2 + 10 * to_binary(n // 2)
-    return x
+    bits = []
+    while n:
+        bits.append(str(n % 2))
+        n //= 2
 
+    return "".join(reversed(bits))
 
-print(to_binary(18))
-
-# Define URL
-url = 'https://github.com/melaniewalsh/Intro-Cultural-Analytics/raw/master/book/data/bellevue_almshouse_modified.csv'
-
-df_bellevue = pd.read_csv(url)
 
 
 def task_1():
-    """Return a list of column names sorted by count of missing values."""
-    print("Issue: The 'gender' column uses 0/1 encoding; 0 is not missing.")
-    missing_counts = df_bellevue.isnull().sum()
-    sorted_cols = missing_counts.sort_values().index.tolist()
+    df = df_bellevue.copy()
 
-    print("\n--- Task 1 Output ---")
-    print(sorted_cols)
-    return sorted_cols
+    print(
+        "Cleaning gender column: normalizing values and "
+        "treating blanks as missing."
+    )
 
+     # Clean gender without changing the overall missing-count ordering
+    df["gender"] = (
+    df["gender"]
+    .astype("string")
+    .str.strip()
+    .str.lower()
+    .replace({"": pd.NA, "m": "male", "w": "female"})
+)
+
+    df.loc[~df["gender"].isin(["male", "female"]), "gender"] = pd.NA
+
+    missing_counts = df.isna().sum()
+    sorted_columns = missing_counts.sort_values().index.tolist()
+
+    # print("first_name counts (including missing):")
+    # print(df["first_name"].astype("string").value_counts(dropna=False))
+
+    # print("\ngender counts (including missing):")
+    # print(df["gender"].astype("string").value_counts(dropna=False))
+    return sorted_columns
 
 def task_2():
-    """Return a DataFrame showing total admissions per year."""
-    print("Issue: Dates are strings; using 'date_in' to extract year.")
-    df_temp = df_bellevue.copy()
-    df_temp['year'] = pd.to_datetime(df_temp['date_in']).dt.year
-    admissions = df_temp.groupby('year').size().reset_index(name='total_admissions')
+    df = df_bellevue.copy()
 
-    print("\n--- Task 2 Output ---")
-    print(admissions)
-    return admissions
+    print(
+        "Extracting year from date_in and dropping rows "
+        "with invalid or missing dates."
+    )
+
+    df["date_in"] = pd.to_datetime(df["date_in"], errors="coerce")
+    df = df.dropna(subset=["date_in"])
+    df["year"] = df["date_in"].dt.year
+
+    admissions_by_year = (
+        df.groupby("year")
+        .size()
+        .reset_index(name="total_admissions")
+    )
+
+    return admissions_by_year
+
 
 def task_3():
-    """Return a Series of average ages grouped by gender."""
-    print("Issue: Missing values in age are handled by pandas mean().")
-    avg_ages = df_bellevue.groupby('gender')['age'].mean()
+    df = df_bellevue.copy()
 
-    print("\n--- Task 3 Output ---")
-    print(avg_ages)
-    return avg_ages
+    print(
+        "Cleaning gender column by standardizing historical labels "
+        "(m, h → male; w, g → female) and removing invalid ages."
+    )
+
+    df["gender"] = (
+        df["gender"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .replace(
+            {
+                "m": "male",
+                "h": "male",
+                "w": "female",
+                "g": "female",
+                "nan": pd.NA,
+            }
+        )
+    )
+
+    df["age"] = pd.to_numeric(df["age"], errors="coerce")
+
+    avg_age_by_gender = (
+        df.dropna(subset=["gender", "age"])
+        .groupby("gender")["age"]
+        .mean()
+    )
+
+    return avg_age_by_gender
 
 
 def task_4():
-    """Return a list of the 5 most common professions."""
-    print("Issue: Professions may have case/spelling inconsistencies.")
-    top_5 = df_bellevue['profession'].value_counts().head(5).index.tolist()
+    df = df_bellevue.copy()
 
-    print("\n--- Task 4 Output ---")
-    print(top_5)
-    return top_5
+    print("Cleaning profession column: lowercasing and trimming whitespace.")
 
+    df["profession"] = (
+        df["profession"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .replace("nan", pd.NA)
+    )
 
-# Calling the functions to trigger the prints
-if __name__ == "__main__":
-    task_1()
-    task_2()
-    task_3()
-    task_4()
+    top_professions = (
+        df["profession"]
+        .dropna()
+        .value_counts()
+        .head(5)
+        .index
+        .tolist()
+    )
+
+    return top_professions
+
+print(fibonacci(9))
+print(to_binary(2))
+print(to_binary(12))
+print(task_1())
+print(task_2())
+print(task_3())
+print(task_4())
