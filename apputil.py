@@ -59,17 +59,10 @@ def task_1():
     """
     df = df_bellevue.copy()
 
-    """
-    Fix known issue: inconsistent gender values treated as missing
-    """
-    print("Cleaning gender column: standardizing missing/invalid entries.")
-    df["gender"] = df["gender"].replace(["", " ", "unknown", "Unknown"], pd.NA)
-
     missing_counts = df.isna().sum()
     sorted_columns = missing_counts.sort_values().index.tolist()
 
     return sorted_columns
-
 
 def task_2():
     """
